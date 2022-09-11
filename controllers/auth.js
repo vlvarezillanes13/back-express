@@ -22,7 +22,7 @@ const crearUsuario = async (req, resp = response) => {
         const salt = bcrypt.genSaltSync( 10 );
         dbUser.password = bcrypt.hashSync( password, salt);
         //Generar el JWT
-        const token = await generarJWT( dbUser.id, dbUser.name );
+        const token = await generarJWT( dbUser.id, name );
 
         //Crear usuario BD
         await dbUser.save();
@@ -43,20 +43,62 @@ const crearUsuario = async (req, resp = response) => {
     }
 };
 
-const loginUsuario = (req, resp = response) => {
+const loginUsuario = async (req, resp = response) => {
 
-    resp.json({
-        ok:true,
-        msg:"Login"
-    })
+    const { email, password } = req.body;
+
+    try{
+
+        const dbUser = await Usuario.findOne( { email });
+
+        if( !dbUser ){
+            return resp.status(400).json({
+                ok:false,
+                msg:"Correo no existe"
+            });
+        }
+
+        //validar password
+        const validPassword = bcrypt.compareSync( password, dbUser.password );
+        if( !validPassword ){
+            return resp.status(400).json({
+                ok:false,
+                msg:"Password no es valido"
+            });
+        }
+
+        //Generar el JWT
+        const token = await generarJWT( dbUser.id, dbUser.name );
+
+        //respuesta del servicio
+        return resp.status(200).json({
+            ok:true,
+            uid: dbUser.id,
+            name: dbUser.name,
+            token
+        });
+
+    }catch(errors){
+        return resp.status(500).json({
+            ok:false,
+            msg:"Contactarse con el administrador"
+        });
+    }
 };
 
 
-const revalidarToken = (req, resp = response) => {
-    resp.json({
+const revalidarToken = async (req, resp = response) => {
+
+    const { uid, name } = req;
+
+    const token =  await generarJWT( uid, name);
+
+    return resp.status(200).json({
         ok:true,
-        msg:"Renew"
-    })
+        uid,
+        name,
+        token
+    });
 };
 
 
